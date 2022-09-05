@@ -1,0 +1,16 @@
+{
+	"compilerOptions": {
+		"target": "es2020",
+		"module": "es2020",
+		"lib": ["ESNext", "DOM"],
+		"sourceMap": true,
+		"outDir": "./built",
+		"noEmit": true,
+		"strict": true,
+		"alwaysStrict": true,
+		"moduleResolution": "node",
+		"esModuleInterop": true,
+		"skipLibCheck": true,
+		"forceConsistentCasingInFileNames": true
+	}
+}

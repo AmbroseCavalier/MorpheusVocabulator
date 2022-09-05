@@ -1,0 +1,26 @@
+{
+  "name": "greek-vocabulator",
+  "version": "0.1.0",
+  "private": true,
+  "description": "",
+  "main": "index.js",
+  "directories": {
+    "test": "test"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "serve": "http-server -c-1 -a 127.0.0.1 -p 9733",
+    "watch": "esbuild src/index.ts --outfile=built/bundle.js --bundle --sourcemap --watch",
+    "build": "node build.js"
+  },
+  "author": "Ambrose Cavalier",
+  "license": "MIT",
+  "devDependencies": {
+    "archiver": "^5.3.0"
+  },
+  "dependencies": {
+    "@dynein/watched-builtins": "^0.1.2",
+    "dynein": "^0.1.3",
+    "grapheme-splitter": "^1.0.4"
+  }
+}
