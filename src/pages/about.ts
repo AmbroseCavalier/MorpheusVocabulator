@@ -14,8 +14,12 @@ export default function aboutPage() {
 	<img src="${profileImg}" style="border-radius:50%"></img>
 </div>
 
-<p><i>Salve!</i> I’m Ambrose Cavalier (<a href="https://www.christendom.edu/">Christendom College</a> Class of ’24). I enjoyed studying Latin throughout high-school and I do computer coding in my free time. Vocabulator grew out of both these interests.</p>
+<p><i>χαῖρε!</i> I’m Ambrose Cavalier (<a href="https://www.christendom.edu/">Christendom College</a> Class of ’24). I enjoyed studying Latin throughout high-school and I do computer coding in my free time. Vocabulator grew out of both these interests.</p>
 <p>In my Freshman Spring Latin class, we needed to be able to translate sections from the <i>The Consolation of Philosophy</i> using just the Latin text and a vocabulary list we prepared ahead of time. I had used <a href="http://archives.nd.edu/words.html">William Whitaker’s Words</a> in the past for looking up Latin words without the tedium of a dictionary, and I started creating my vocabulary lists using Words. But then I decided I would program my own Latin word parsing tool like Whitaker’s Words, both as an interesting exercise, and to help me speed up my homework. And thus Vocabulator was born.</p>
+
+<p>A semester later, I started studying Greek and I decided I wanted a Greek Vocabulator.
+Making one turned out to be more complicated than I had expected. If you want to read about the whole
+adventure, check out the <a href="https://ambrosecavalier.com/projects/greek-vocabulator/about">write-up on my blog</a>.</p>
 
 <p class="text-muted text-center">
 Bundle built on DEVBUILDTIME

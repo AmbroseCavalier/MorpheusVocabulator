@@ -4,7 +4,6 @@ import mainPage from "./pages/main.js"
 import helpPage from "./pages/help.js"
 import editPage from "./pages/edit.js"
 import aboutPage from "./pages/about.js"
-import loadingPage from "./pages/loading.js"
 
 import navbar from "./components/navbar.js"
 
@@ -14,11 +13,7 @@ console.log(`
 Welcome to Greek Vocabulator vDEVELOPMENT!
 ====================================
 
-To see verbose logging, run
-
-DEBUG = true
-
-in the browser console.
+For more information, see the writeup at https://ambrosecavalier.com/projects/greek-vocabulator/about
 `)
 
 const { div, span, button, strong, a } = D.elements
@@ -40,6 +35,10 @@ D.createRootScope(()=>{
 		text-align: center;
 		margin-top: 2em;
 		margin-bottom: 1em;
+	}
+
+	h1 {
+		text-align: left;
 	}
 
 	.subheader {
@@ -75,13 +74,6 @@ D.createRootScope(()=>{
 	`
 })
 
-const loadingPageScope = new D.DestructionScope(null)
-
-loadingPageScope.resume(()=>{
-	D.addPortal(document.body, ()=>{
-		loadingPage()
-	})
-})
 
 const latestVersion = $("")
 
@@ -95,7 +87,6 @@ async function tryGetLatestVersion() {
 
 async function app() {
 	tryGetLatestVersion()
-	loadingPageScope.destroy()
 	document.body.textContent = ""
 	D.createRootScope(()=>{
 		D.addPortal(document.body, ()=>{
@@ -119,32 +110,33 @@ async function app() {
 				}
 			])
 
-			const versionPopupDismissed = $(false)
-			D.addIf(()=>
-				latestVersion() !== ""
-				&& latestVersion() !== "vDEVELOPMENT" //vDEVELOPMENT will be replaced in final build with actual build version
-				&& !versionPopupDismissed()
-			, ()=>{
-				div({class:"position-fixed bottom-0 end-0 p-3"}, ()=>{
-					div({class:"toast show"}, ()=>{
-						div({class:"toast-header"}, ()=>{
-							strong({class:"me-auto"}, "New Version Available!")
-							button({class:"btn-close", onclick:()=>{
-								versionPopupDismissed(true)
-							}})
-						})
-						div({class:"toast-body"}, ()=>{
-							$text(()=>`Vocabulator ${latestVersion()} has been released! You are currently using vDEVELOPMENT. Go to `)
-							a({href:"https://ambrosecavalier.com/projects/vocabulator/Vocabulator.zip"}, "https://ambrosecavalier.com/projects/vocabulator/Vocabulator.zip")
-							$text(" to download the latest version.")
+			//@ts-ignore
+			if (window.STANDALONE) {
+				const versionPopupDismissed = $(false)
+				D.addIf(()=>
+					latestVersion() !== ""
+					&& latestVersion() !== "vDEVELOPMENT" //vDEVELOPMENT will be replaced in final build with actual build version
+					&& !versionPopupDismissed()
+				, ()=>{
+					div({class:"position-fixed bottom-0 end-0 p-3"}, ()=>{
+						div({class:"toast show"}, ()=>{
+							div({class:"toast-header"}, ()=>{
+								strong({class:"me-auto"}, "New Version Available!")
+								button({class:"btn-close", onclick:()=>{
+									versionPopupDismissed(true)
+								}})
+							})
+							div({class:"toast-body"}, ()=>{
+								$text(()=>`Greek Vocabulator ${latestVersion()} has been released! You are currently using vDEVELOPMENT. Go to `)
+								a({href:"https://ambrosecavalier.com/projects/greek-vocabulator/Vocabulator.zip"}, "https://ambrosecavalier.com/projects/greek-vocabulator/Vocabulator.zip")
+								$text(" to download the latest version.")
+							})
 						})
 					})
 				})
-			})
-
-			const offlinePopupDismissed = $(false)
-			//@ts-ignore
-			if (!window.STANDALONE) {
+			} else {
+				/*
+				const offlinePopupDismissed = $(false)
 				D.addIf(()=>
 					!offlinePopupDismissed()
 				, ()=>{
@@ -157,13 +149,14 @@ async function app() {
 								}})
 							})
 							div({class:"toast-body"}, ()=>{
-								$text(()=>`Want to use Vocabulator without an internet connection? Download the offline version from `)
-								a({href:"https://ambrosecavalier.com/projects/vocabulator/Vocabulator.zip"}, "https://ambrosecavalier.com/projects/vocabulator/Vocabulator.zip")
+								$text(()=>`Want to use Greek Vocabulator without an internet connection? Download the offline version from `)
+								a({href:"https://ambrosecavalier.com/projects/greek-vocabulator/Vocabulator.zip"}, "https://ambrosecavalier.com/projects/greek-vocabulator/Vocabulator.zip")
 								$text(" and save it on your computer.")
 							})
 						})
 					})
 				})
+				*/
 			}
 		})
 	})

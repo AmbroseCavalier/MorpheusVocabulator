@@ -1,10 +1,8 @@
-import { css, findWords } from "../utils/utils.js"
+import { findWords } from "../utils/utils.js"
 
-import { customText, currentWork, breakAtNumbers, knownWords, workSearchMode, searchText, searchLocation, hoverWord, activeWord, printMode, toggleKnown, currentTextResult } from "../state/state.js"
+import { customText, breakAtNumbers, knownWords, hoverWord, activeWord, printMode, toggleKnown, currentTextResult } from "../state/state.js"
 
-import dropdown from "./dropdown.js"
 import * as D from "dynein"
-import tabs from "./tabs.js"
 import toggle from "./toggle.js"
 import greekInputBox from "./greekInputBox.js"
 import modalLink from "./modalLink.js"
@@ -17,16 +15,9 @@ const { textarea, div, button, ul, li, input, span, br, table, tbody, tr, td } =
 
 export default function reader() {
 	div({class:"border-bottom"}, ()=>{
-		div(()=>{
-			const el = greekInputBox(customText, true)
-			el.className = "form-control"
-			D.addNode(el)
-		})
-
 		div({class:"d-flex align-items-center justify-content-between"}, ()=>{
-			div({class:"col"}, ()=>{
-				toggle("Break at Numbers", breakAtNumbers)
-			})
+			span("Type Greek text here")
+
 			modalLink("Greek Typing Guide", "Greek Typing Guide", ()=>{
 				D.addHTML(`
 					<p>This Greek input is based on <a href="https://en.wikipedia.org/wiki/Betacode" target="_blank">Betacode</a>.
@@ -71,8 +62,24 @@ export default function reader() {
 					</tbody>
 					</table>
 				`)
-
 			})
+		})
+
+		div(()=>{
+			const el = greekInputBox(customText, true)
+			el.className = "form-control"
+			D.addNode(el)
+		})
+
+		div({class:"d-flex align-items-center justify-content-between"}, ()=>{
+
+			div({class:"col"}, ()=>{
+				D.addIf(()=>/\d+/.test(currentTextResult().data), ()=>{
+					toggle("Break at Numbers", breakAtNumbers)
+				})
+			})
+
+			span("Hover over words, click to anchor")
 		})
 	})
 

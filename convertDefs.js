@@ -87,6 +87,14 @@ function unicodeToBetacode(str) {
 		str = str.replace(new RegExp(escapeRegex(greek), "g"), ascii)
 		str = str.replace(new RegExp(escapeRegex(greek.toUpperCase()), "g"), ascii.toUpperCase())
 	}
+
+	if (str.toLowerCase() !== str) {
+		str = str.toLowerCase()
+		str = "*" + str
+	}
+
+	str = str.replace(/^\*([aeiouhw])([\(\)\/\\=]+)/, "*$2$1") // Morpheus doesn't work if we don't do this normalization to standard betacode
+
 	return str
 }
 

@@ -38,7 +38,7 @@ function genHTMLWrapper(singleFileMode) {
 	<!DOCTYPE html>
 	<head>
 		<meta charset="utf-8">
-		<title>Vocabulator</title>
+		<title>Greek Vocabulator</title>
 	<!--
 	Greek Vocabulator
 	vDEVELOPMENT
@@ -133,7 +133,7 @@ const onlineVersion = genHTMLWrapper(false);
 const offlineVersion = genHTMLWrapper(true);
 
 const offlinePath = "./dist/Vocabulator_standalone.html";
-fs.writeFileSync("./dist/Vocabulator.html", onlineVersion, "utf8");
+fs.writeFileSync("./dist/index.html", onlineVersion, "utf8");
 fs.writeFileSync(offlinePath, offlineVersion, "utf8");
 
 const output = fs.createWriteStream("./dist/Vocabulator.zip");

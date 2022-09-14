@@ -1,5 +1,5 @@
 import { findWords } from "../utils/utils.js"
-import { customText, currentWork, printFontSize, printNColumns, knownWords, customResults,parsingsDisplayMode, workSearchMode, searchText, searchLocation, hoverWord, activeWord, printMode, toggleKnown, cosmeticUV, currentTextResult, printHeader, showAllDetailFlags } from "../state/state.js"
+import { printFontSize, printNColumns, knownWords, customResults,parsingsDisplayMode, hoverWord, activeWord, printMode, toggleKnown, currentTextResult, printHeader, showAllDetailFlags, otherAccentsResultsMode } from "../state/state.js"
 import * as D from "dynein"
 import tabs from "./tabs.js"
 import toggle from "./toggle.js"
@@ -10,15 +10,17 @@ import * as lemmatizer from "../engine/lemmatizer.js"
 import radio from "./radio.js"
 
 import print from "../utils/print.js"
-import greekInputBox, { betacodeToUnicode } from "./greekInputBox.js"
+import greekInputBox, { betacodeToUnicode, unicodeToBetacode } from "./greekInputBox.js"
 import { standardDetailFlagsDisplayGroups } from "../engine/parseFlags.js"
 import modalLink from "./modalLink.js"
+import modal from "./modal.js"
+import { permuteAccents } from "../engine/permuteAccents.js"
 
 const $if = D.addIf
 const $text = D.addText
 const $ = D.createSignal
 
-const { textarea, div, button, ul, li, input, span, br, dl, dd, hr, p } = D.elements
+const { textarea, div, button, ul, li, input, span, br, dl, dd, hr, p, h3, h4, h5 } = D.elements
 const {svg, path} = D.svgElements
 
 function superscriptify(text: string) {
@@ -66,6 +68,12 @@ function bookIconFilled() {
 	`)
 }
 
+function printOutputWord(word: string, mode: RenderMode, inner: ()=>void) {
+	D.elements.u({onclick:(evt: MouseEvent)=>{
+		forPrintLemmaClickHandler(evt, word, mode)
+	}, class:()=>(mode === "preview" && activeWord() === word) ? "result active" : "result", style:"font-weight:bold"},inner)
+}
+
 function renderResults(word: string, results: Result[], mode: RenderMode) {
 	//console.log("got results", results)
 
@@ -74,19 +82,11 @@ function renderResults(word: string, results: Result[], mode: RenderMode) {
 		const {english, lemma, flags, detailFlags} = result
 
 		if (mode !== "hover") {
-			if (prev?.english !== result.english) {
-				D.elements.u({
-					onclick:(evt: MouseEvent)=>{
-						forPrintLemmaClickHandler(evt, word, mode)
-					},
-					oncontextmenu:(evt)=>{
-						evt.preventDefault()
-						toggleKnown(word)
-					},
-					class:()=>(mode === "preview" && activeWord() === word) ? "result active" : "result"
-				},()=>{
+			if (prev?.english !== result.english || prev?.lemma !== result.lemma) {
+				printOutputWord(word, mode, ()=>{
 					D.elements.b(betacodeToUnicode(lemma.replace(/\d+$/, "")))
 				})
+
 				if (english) {
 					span(()=>{
 						D.addHTML(" "+english.replaceAll(`<span data-alpheios-enable="all" lang="grc">`, "<i>").replaceAll("</span>", "</i>"))
@@ -98,7 +98,6 @@ function renderResults(word: string, results: Result[], mode: RenderMode) {
 			}
 		} else {
 			if (prev?.english !== result.english || prev?.lemma !== result.lemma) {
-
 				const dictLinkHovered = $(false)
 				D.elements.a({
 					style:"font-size: 1.2em; text-decoration: none; float: right;",
@@ -175,9 +174,9 @@ function renderCustomResults(word: string, nRegularResults: number, mode: Render
 
 			$r(()=>{
 				if (mode !== "hover" && otherResults.length === 0 && nRegularResults === 0) {
-					D.elements.u({onclick:(evt: MouseEvent)=>{
-						forPrintLemmaClickHandler(evt, word, mode)
-					}, class:()=>(mode === "preview" && activeWord() === word) ? "result active" : "result", style:"font-weight:bold"},word)
+					printOutputWord(word, mode, ()=>{
+						$text(word)
+					})
 					D.addText(" ")
 					span({style:"background-color:orange;font-weight:bold"}, "NO RESULTS")
 					br()
@@ -211,6 +210,7 @@ function renderAllWords(mode: RenderMode) {
 					div({class:"spinner-border"})
 				})
 				console.log("looking up all words...")
+				const currentOtherAccentsResultsMode = otherAccentsResultsMode()
 				const resultGroups = await Promise.all(words.map(async (word)=>{
 					return {word, results: await lemmatizer.lookup(word)}
 				}))
@@ -219,8 +219,19 @@ function renderAllWords(mode: RenderMode) {
 				$r(()=>{
 					for (let {word, results} of resultGroups) {
 						$if(()=>!knownWords.has(word.toLowerCase()),()=>{
-							renderResults(word, results, mode)
-							renderCustomResults(word, results.length, mode)
+							let nResults = results.length
+							if (currentOtherAccentsResultsMode === 0) {
+								renderResults(word, results, mode)
+							} else if (currentOtherAccentsResultsMode === 1) {
+								if (results.length > 0) {
+									renderResults(word, results, mode)
+								} else {
+									renderResultsWithPermutedAccents(word, mode)
+								}
+							} else {
+								renderResultsWithPermutedAccents(word, mode)
+							}
+
 						})
 					}
 				})
@@ -239,27 +250,150 @@ function renderForPrint() {
 	})
 }
 
+function settingsModal() {
+	modal({
+		title: ()=>{
+			$text("Output Settings")
+		},
+		body: ()=>{
+			div({class:"mb-3"}, ()=>{
+				h5("Parsing Display")
+				radio(
+					["None", "Short", "Long"],
+					parsingsDisplayMode,
+					[
+						"Don’t display any parsing information",
+						'Display parsing information as abbreviations (e.g., “nom. m. sg.”)',
+						'Display parsing information as full words (e.g., “nominative masculine singular”)'
+					]
+				)
+			})
+			div(()=>{
+				h5("Accent and Breathing Handling")
+				p(`Some texts (especially OCR’d texts) can have incorrect or missing accent and breathing
+				marks. Vocabulator can try modifying the accents and breathings on a word to get
+				more results. Show these results:`)
+
+				radio(
+					["Never", "Only as fallback", "Always"],
+					otherAccentsResultsMode,
+					[
+						"Only show results which exactly match the accents and breathings in the text",
+						`Show results from trying different accents and breathings, but only when no
+						results are found when using the accents and breathings in the text. The results
+						produced from trying different accents and breathings will be noted as such
+						in the results pane.`,
+						`Always show what results would be produced by trying different accents and
+						breathings. The results	produced from trying different accents and breathings will be noted as such
+						in the results pane.`
+					]
+				)
+			})
+			div(()=>{
+				h5("Advanced Options")
+				toggle("Show all detail flags", showAllDetailFlags,
+				`The Morpheus engine provides various output flags with its results. Most of these
+				flags can be cryptic to new users, and so by defaultVocabulator hides all flags except for
+				dialect information. You can enable this option to show all flags.` )
+			})
+		}
+	})
+}
+
+function renderResultsWithPermutedAccents(word: string, mode: RenderMode) {
+	let permutedAccents = permuteAccents(unicodeToBetacode(word.toLowerCase()))
+	console.log("got raw permuted accents", permutedAccents.slice(0))
+	permutedAccents = permutedAccents.map(w => betacodeToUnicode(w))
+	console.log("got betacode permuted accents", permutedAccents.slice(0))
+	if (word.toLowerCase() !== word) {
+		permutedAccents = permutedAccents.map(w => w[0].toUpperCase()+w.substring(1))
+	}
+
+	console.log("got permuted accents", permutedAccents)
+
+	D.addAsyncReplaceable(async ($r)=>{
+		$r(()=>{
+			div({class:"spinner-border"})
+		})
+
+		const resultsOfPermuted = await Promise.all(permutedAccents.map(async (modifiedWord) => ({modifiedWord, results: await lemmatizer.lookup(modifiedWord)})))
+
+		$r(()=>{
+			const totalResults = resultsOfPermuted.map(r => r.results.length).reduce((acc,val)=>acc+val, 0)
+			if (totalResults > 0) {
+				if (D.sample(otherAccentsResultsMode) === 1) {
+					if (mode === RenderMode.hover) {
+						p(`No results for ${word} when using strict diacritic matching.`)
+					} else {
+						printOutputWord(word, mode, ()=>{
+							$text(word)
+						})
+						D.addText(" ")
+						span({style:"background-color:orange;font-weight:bold"}, "NO RESULTS WITH STRICT DIACRITICS")
+						br()
+					}
+				}
+
+				for (const {modifiedWord, results} of resultsOfPermuted) {
+					if (results.length > 0) {
+						if (mode === RenderMode.hover) {
+							h4({class:"mt-4"}, ()=>{
+								D.elements.i("Results for")
+								$text(" "+betacodeToUnicode(modifiedWord))
+							})
+							renderResults(word, results, mode)
+						} else {
+							div({style:"border:1px solid black; break-inside: avoid; margin-bottom: 0.2em;"}, ()=>{
+								D.elements.i("Results for ")
+								D.elements.b(betacodeToUnicode(modifiedWord))
+								br()
+								renderResults(betacodeToUnicode(modifiedWord), results, mode)
+							})
+						}
+					}
+				}
+			} else {
+				if (mode === RenderMode.hover) {
+					p(`No results, even without strict diacritic matching.`)
+				}
+			}
+
+			if (mode !== RenderMode.hover) {
+				renderCustomResults(word, totalResults, mode)
+			}
+		})
+	})
+}
+
+
+function pageLoadHelp() {
+	h3("Welcome to Vocabulator!")
+	p("To get started, enter Greek text in the box to the right.")
+	p(`Then hover over a word in the reader to see information about it, or click on it to "anchor" it as the current word.`)
+	p(`For more information, see the Help page.`)
+}
 
 export default function resultsSidebar() {
 	tabs([{
 		name:"Hover Only"
 		,inner:()=>{
+			button({style:"position: absolute; top: 0; right:0", class:"btn btn-primary", onclick:()=>{
+				settingsModal()
+			}
+			}, ()=>{
+				D.addHTML(`<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-gear-fill" viewBox="0 0 16 16">
+				<path d="M9.405 1.05c-.413-1.4-2.397-1.4-2.81 0l-.1.34a1.464 1.464 0 0 1-2.105.872l-.31-.17c-1.283-.698-2.686.705-1.987 1.987l.169.311c.446.82.023 1.841-.872 2.105l-.34.1c-1.4.413-1.4 2.397 0 2.81l.34.1a1.464 1.464 0 0 1 .872 2.105l-.17.31c-.698 1.283.705 2.686 1.987 1.987l.311-.169a1.464 1.464 0 0 1 2.105.872l.1.34c.413 1.4 2.397 1.4 2.81 0l.1-.34a1.464 1.464 0 0 1 2.105-.872l.31.17c1.283.698 2.686-.705 1.987-1.987l-.169-.311a1.464 1.464 0 0 1 .872-2.105l.34-.1c1.4-.413 1.4-2.397 0-2.81l-.34-.1a1.464 1.464 0 0 1-.872-2.105l.17-.31c.698-1.283-.705-2.686-1.987-1.987l-.311.169a1.464 1.464 0 0 1-2.105-.872l-.1-.34zM8 10.93a2.929 2.929 0 1 1 0-5.86 2.929 2.929 0 0 1 0 5.858z"/>
+			  </svg>`)
+			})
 			D.addDynamic(()=>{
 				//console.time("Rerender results pane")
 
-				div({class:"d-flex justify-content-between"}, ()=>{
-					div(()=>{
-						span("Parsing Display: ")
-						radio(["None", "Short", "Long"], parsingsDisplayMode)
-					})
-					div(()=>{
-						toggle("Show all detail flags", showAllDetailFlags)
-					})
-				})
+				const word = activeWord() || hoverWord()
+				if (word === "") {
+					pageLoadHelp()
+					return
+				}
 
-
-
-				let word = activeWord() || hoverWord()
 				D.elements.a({
 					style:"font-size: 1.2em; text-decoration: none; float: right;",
 					href:`https://www.perseus.tufts.edu/hopper/morph?l=${word}`,
@@ -270,62 +404,76 @@ export default function resultsSidebar() {
 				})
 				D.elements.h3(word)
 
-
-				let ignoreCheck = word.toLowerCase()
-				let regularResults = word === "" ? [] : lemmatizer.lookupSignal(word)
-
 				toggle("Known", knownWords.port(word.toLowerCase()) as D.Signal<boolean>)
 				div({class:"text-muted", style:"font-size: 0.7em; margin-top: -0.3em;"}, "right click in the reader to toggle")
 
-				br()
-				if (!regularResults) {
-					div({class:"spinner-border"})
-					return
-				}
 
-				if (regularResults.length === 0) {
-					span("No results.")
-				} else {
-					renderResults(word, regularResults, RenderMode.hover)
+				const customResultsKey = word.toLowerCase()
 
-
-
-					div({style:"font-size: 0.8em; margin-top: 1rem;"}, ()=>{
-						D.addHTML(`Analysis by the <a href="https://github.com/PerseusDL/morpheus" target="_blank">Morpheus</a> engine, definitions from the <a href="https://alpheios.net/" target="_blank">Alpheios</a> project. `)
-
-						modalLink("Full Credits", "Credits", ()=>{
-							D.addHTML(`
-								<ul>
-									<li>Morphological analysis by the <a href="https://github.com/PerseusDL/morpheus" target="_blank">Morpheus</a> engine from the Perseus Digital Library at Tufts University.
-										<ul>
-											<li>Morpheus was ported to the web with <a href="https://emscripten.org/" target="_blank">Emscripten</a>.</li>
-										</ul>
-									</li>
-									<li><p>Word definitions collected by the <a href="https://alpheios.net/" target="_blank">Alpheios</a> project. (<a href="https://github.com/alpheios-project/mjm" target="_blank">Source</a>)</p>
-
-
-										<p>Original dictionary credits:
-										<ul>
-											<li>"An Intermediate Greek-English Lexicon" (Henry George Liddell, Robert Scott). Provided by the Perseus Digital Library at Tufts University. Edits and additions provided by Vanessa Gorman, University of Nebraska.</li>
-											<li>Wilfred E. Major, <i>Core Greek Vocabulary for the First Two Years of Greek</i>. CPL Online, Winter 2008. Edits and additions provided by Vanessa Gorman, University of Nebraska.</li>
-										</ul></p>
-									</li>
-									<li>UI components from <a href="https://getbootstrap.com" target="_blank">Bootstrap</a>. Licensed under the MIT license.</li>
-									<li>Icons from <a href="https://icons.getbootstrap.com/" target="_blank">Bootstrap Icons</a>. Licensed under the MIT license.</li>
-								</ul>
-							`)
-						})
+				const currentOtherAccentsResultsMode = otherAccentsResultsMode()
+				D.addAsyncReplaceable(async ($r)=>{
+					$r(()=>{
+						div({class:"spinner-border"})
 					})
-				}
-				D.elements.h3({class:"mt-3"}, "Custom Results")
+					const strictResults = await lemmatizer.lookup(word)
+					console.log("got strict results ", strictResults)
+					$r(()=>{
+						if (currentOtherAccentsResultsMode === 0) {
+							if (strictResults.length === 0) {
+								span("No results.")
+							} else {
+								renderResults(word, strictResults, RenderMode.hover)
+							}
+						} else if (currentOtherAccentsResultsMode === 1) {
+							if (strictResults.length > 0) {
+								renderResults(word, strictResults, RenderMode.hover)
+							} else {
+								renderResultsWithPermutedAccents(word, RenderMode.hover)
+							}
+						} else {
+							renderResultsWithPermutedAccents(word, RenderMode.hover)
+						}
 
-				const customResultsInput = greekInputBox(D.toSignal<string>(()=>customResults.get(ignoreCheck) ?? "", (v) => customResults.set(ignoreCheck, v)), true, true)
-				customResultsInput.className = "form-control"
-				customResultsInput.placeholder = "Put custom results here, with Greek and English on alternate lines."
-				D.addNode(customResultsInput)
+						div({style:"font-size: 0.8em; margin-top: 1rem;"}, ()=>{
+							D.addHTML(`Analysis by the <a href="https://github.com/PerseusDL/morpheus" target="_blank">Morpheus</a> engine, definitions from the <a href="https://alpheios.net/" target="_blank">Alpheios</a> project. `)
 
-				br()
-				renderCustomResults(word, regularResults.length, RenderMode.hover)
+							modalLink("Full Credits", "Credits", ()=>{
+								D.addHTML(`
+									<ul>
+										<li>Morphological analysis by the <a href="https://github.com/PerseusDL/morpheus" target="_blank">Morpheus</a> engine from the Perseus Digital Library at Tufts University.
+											<ul>
+												<li>Morpheus was ported to the web with <a href="https://emscripten.org/" target="_blank">Emscripten</a>.</li>
+											</ul>
+										</li>
+										<li><p>Word definitions collected by the <a href="https://alpheios.net/" target="_blank">Alpheios</a> project. (<a href="https://github.com/alpheios-project/mjm" target="_blank">Source</a>)</p>
+
+
+											<p>Original dictionary credits:
+											<ul>
+												<li>"An Intermediate Greek-English Lexicon" (Henry George Liddell, Robert Scott). Provided by the Perseus Digital Library at Tufts University. Edits and additions provided by Vanessa Gorman, University of Nebraska.</li>
+												<li>Wilfred E. Major, <i>Core Greek Vocabulary for the First Two Years of Greek</i>. CPL Online, Winter 2008. Edits and additions provided by Vanessa Gorman, University of Nebraska.</li>
+											</ul></p>
+										</li>
+										<li>UI components from <a href="https://getbootstrap.com" target="_blank">Bootstrap</a>. Licensed under the MIT license.</li>
+										<li>Icons from <a href="https://icons.getbootstrap.com/" target="_blank">Bootstrap Icons</a>. Licensed under the MIT license.</li>
+									</ul>
+								`)
+							})
+						})
+
+						D.elements.h3({class:"mt-3"}, "Custom Results")
+
+						const customResultsInput = greekInputBox(D.toSignal<string>(()=>customResults.get(customResultsKey) ?? "", (v) => customResults.set(customResultsKey, v)), true, true)
+						customResultsInput.className = "form-control"
+						customResultsInput.placeholder = "Put custom results here, with Greek and English on alternate lines."
+						D.addNode(customResultsInput)
+
+						br()
+						renderCustomResults(word, strictResults.length, RenderMode.hover)
+					})
+
+				})
+
 			})
 		}}
 		,{

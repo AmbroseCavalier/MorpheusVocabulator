@@ -57,6 +57,7 @@ export function bootMorpheus() {
 			}
 			if (!item.stdin.trim()) {
 				console.warn("Got blank item, ignoring")
+				item.resolve({stdout:"", stderr:""})
 				continue
 			}
 
@@ -120,7 +121,7 @@ export function bootMorpheus() {
 
 
 	var Module = {
-		arguments: ["-S"],
+		arguments: [],
 		preRun: [
 			function() {
 				ENV.MORPHLIB = "/"

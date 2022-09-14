@@ -18,7 +18,6 @@ const store = new PersistentStore("greek-vocabulator", 1, [
 ])
 
 // persistent
-const cosmeticUV = store.value("cosmeticUV", true as boolean)
 const currentWork = store.value("activeWork", "Custom" as string)
 const customText = store.value("customText", `ἄνδρα μοι ἔννεπε, μοῦσα, πολύτροπον, ὃς μάλα πολλὰ
 πλάγχθη, ἐπεὶ Τροίης ἱερὸν πτολίεθρον ἔπερσεν·
@@ -38,8 +37,7 @@ const printHeader = store.value("printHeader", "" as string)
 
 const parsingsDisplayMode = store.value("parsingsMode", 0 as number)
 const showAllDetailFlags = store.value("showAllDetailFlags", false)
-
-const loadingQuoteN = store.value("loadingQuote", 0 as number)
+const otherAccentsResultsMode = store.value("otherAccentsResultsMode", 1 as number)
 
 const printFontSize = store.value("printFontSize", 8 as number)
 const printNColumns = store.value("printNColumns", 4 as number)
@@ -47,15 +45,9 @@ const printNColumns = store.value("printNColumns", 4 as number)
 const breakAtNumbers = store.value("breakAtNumbers", false as boolean)
 
 // impersistent
-const searchText = $("")
-const searchLocation = $("")
-
 const hoverWord = $("")
 const activeWord = $("")
 const printMode = $(0)
-const showTranslation = $(false)
-
-const workSearchMode = $(0)
 
 function toggleKnown(word: string) {
 	word = word.toLowerCase()
@@ -71,4 +63,4 @@ const currentTextResult = D.createRootScope(()=>D.createMemo(()=>{
 	}
 }))
 
-export { cosmeticUV, loadingQuoteN, breakAtNumbers, printFontSize, printNColumns, currentWork, knownWords, customText, parsingsDisplayMode, customResults, searchText, searchLocation, hoverWord, activeWord, showTranslation, workSearchMode, toggleKnown, printMode, currentTextResult, printHeader, showAllDetailFlags}
+export { breakAtNumbers, printFontSize, printNColumns, currentWork, knownWords, customText, parsingsDisplayMode, otherAccentsResultsMode, customResults, hoverWord, activeWord, toggleKnown, printMode, currentTextResult, printHeader, showAllDetailFlags}

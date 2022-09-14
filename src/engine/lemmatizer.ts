@@ -4,6 +4,7 @@ import { unicodeToBetacode } from "../components/greekInputBox.js"
 // @ts-ignore
 import { bootMorpheus as bootMorpheus_untyped } from "./bootMorpheus.js"
 import { parseFlag, sortFlags } from "./parseFlags.js"
+import { permuteAccents } from "./permuteAccents.js"
 
 function bootMorpheus(): {
 	processWord: (inputLine: string) => Promise<{stdout: string, stderr: string}>,
@@ -14,7 +15,7 @@ function bootMorpheus(): {
 
 const morpheusGreek = bootMorpheus()
 
-export async function processWord(word: string) {
+async function processWord(word: string) {
 	return (await morpheusGreek.processWord(word)).stdout
 }
 
@@ -65,7 +66,9 @@ async function loadEnglishDictionary(): Promise<Map<string, string>> {
 
 const englishDictionaryPromise = loadEnglishDictionary()
 
-function parseResult(wordOrigCase: string, rawMorpheusResults: string, englishDictionary: Map<string, string>): Result[] {
+async function getResultsWithoutChangingCase(word: string, englishDictionary: Map<string, string>): Promise<Result[]> {
+	const rawMorpheusResults = await processWord(word)
+
 	const results: Result[] = []
 
 	const hasLemmas = new Set<string>()
@@ -95,11 +98,6 @@ function parseResult(wordOrigCase: string, rawMorpheusResults: string, englishDi
 			rawWord = rawWordAndLemmaSplit[0]
 			lemma = rawWordAndLemmaSplit[1]
 		}
-		lemma = lemma.replace(/^\*([\(\)\/\\=]+)([aeiouhw])/, "*$2$1")
-		if (lemma.startsWith("*")) {
-			lemma = lemma[1].toUpperCase()+lemma.substring(2)
-		}
-		lemma = lemma.replaceAll("\\", "/") // grave -> acute
 
 		const english = englishDictionary.get(lemma) ?? englishDictionary.get(lemma.replace(/\d+$/, "")) ?? null
 
@@ -121,10 +119,9 @@ function parseResult(wordOrigCase: string, rawMorpheusResults: string, englishDi
 	}
 
 	for (let i = 0; i<10; i++) {
-		let lemma = wordOrigCase+(i === 0 ? "" : i)
+		let lemma = word+(i === 0 ? "" : i)
 		const directDictionaryMatch = englishDictionary.get(lemma)
 		if (directDictionaryMatch) {
-			lemma = lemma.replaceAll("\\", "/") // grave -> acute
 			if (hasLemmas.has(lemma)) {
 				continue
 			}
@@ -136,39 +133,42 @@ function parseResult(wordOrigCase: string, rawMorpheusResults: string, englishDi
 	return results
 }
 
-export function lookup(word: string): Promise<Result[]> {
-	word = word.trim()
-	const wordOrigCase = unicodeToBetacode(word)
-	word = unicodeToBetacode((word.toLowerCase() !== word ? "*" : "")+word.toLowerCase())
-	word = word.replace(/^\*([aeiouhw])([\(\)\/\\=]+)/, "*$2$1") // Morpheus doesn't work if we don't do this normalization to standard betacode
+async function getResults(word: string): Promise<Result[]> {
+	const englishDictionary = await englishDictionaryPromise
+	word = word.toLowerCase()
+	word = unicodeToBetacode(word)
 	word = word.replaceAll("\\", "/")
-	console.log("lookup ",word)
 
+	const lowercaseHasLemmas = new Set<string>()
+
+	const results: Result[] = []
+	for (const tryUppercase of [false, true]) {
+		if (tryUppercase) {
+			word = "*"+word
+			word = word.replace(/^\*([aeiouhw])([\(\)\/\\=]+)/, "*$2$1") // Morpheus doesn't work if we don't do this normalization to standard betacode
+
+		}
+
+		console.log("lookup ",word)
+		const caseResults = await getResultsWithoutChangingCase(word, englishDictionary)
+
+		for (const result of caseResults) {
+			if (!tryUppercase || !lowercaseHasLemmas.has(result.lemma)) {
+				results.push(result)
+				if (!tryUppercase) {
+					lowercaseHasLemmas.add(result.lemma)
+				}
+			}
+		}
+	}
+
+	return results
+}
+
+export async function lookup(word: string): Promise<Result[]> {
 	if (!wordsCache.has(word)) {
-		const promise = new Promise<Result[]>((resolve)=>{
-			processWord(word).then(async (result) => {
-				const englishDictionary = await englishDictionaryPromise
-				resolve(parseResult(wordOrigCase, result, englishDictionary))
-			})
-		})
+		const promise = getResults(word)
 		wordsCache.set(word, promise)
 	}
 	return wordsCache.get(word)!
 }
-
-export function lookupSignal(word: string): Result[] | null {
-	if (!wordsSignalCache.has(word)) {
-		const signal = D.createSignal<Result[] | null>(null)
-		lookup(word).then(results => {
-			signal(results)
-		})
-		wordsSignalCache.set(word, signal)
-	}
-
-	return wordsSignalCache.get(word)!()
-}
-
-async function test() {
-	console.log("test results", processWord("*)aqhnai=oi"))
-}
-test()

@@ -22,7 +22,7 @@ export default function editPage() {
 		D.addNode(box)
 
 		//TODO: it would be nice if it auto-saved and auto-updated but there's a tricky state problem
-		button({class:"btn btn-primary", onclick:()=>{
+		button({class:"btn btn-primary mt-2", onclick:()=>{
 			const raw = textareaValue()
 			let lines = raw.trim().split(/\n+/).map(seg => seg.trim()).filter(word => word)
 			D.batch(()=>{

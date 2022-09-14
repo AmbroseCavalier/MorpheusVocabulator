@@ -17,7 +17,7 @@ export default function aboutPage() {
 
 		<p>There are lots of Greek texts online that can easily be copied and pasted into Vocabulator. The <a href="https://scaife.perseus.org/">Perseus Library</a> is an especially useful source.</p>
 
-		<p>If you click on a word, it will “anchor” as the current word.</p>
+		<p>If you click on a word, Vocabulator will “anchor” it as the current word.</p>
 
 		<h1>2. Creating a list of unknown vocabulary</h1>
 

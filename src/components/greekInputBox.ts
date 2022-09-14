@@ -95,11 +95,23 @@ export function unicodeToBetacode(str: string) {
 		str = str.replace(new RegExp(escapeRegex(greek), "g"), ascii)
 		str = str.replace(new RegExp(escapeRegex(greek.toUpperCase()), "g"), ascii.toUpperCase())
 	}
+	if (str.toLowerCase() !== str) {
+		str = str.toLowerCase()
+		str = "*" + str
+	}
+
+	str = str.replace(/^\*([aeiouhw])([\(\)\/\\=]+)/, "*$2$1") // Morpheus doesn't work if we don't do this normalization to standard betacode
+
 	return str
 }
 
 const splitter = new GraphemeSplitter();
 export function betacodeToUnicode(str: string) {
+	str = str.replace(/^\*([\(\)\/\\=]+)([aeiouhw])/, "*$2$1")
+	if (str.startsWith("*")) {
+		str = str[1].toUpperCase()+str.substring(2)
+	}
+
 	str = str.replace(/.'/g, (match)=>{
 		const prev = match[0]
 		if (/[aeiouh]/.test(prev)) {
