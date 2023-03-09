@@ -135,7 +135,6 @@ async function app() {
 					})
 				})
 			} else {
-				/*
 				const offlinePopupDismissed = $(false)
 				D.addIf(()=>
 					!offlinePopupDismissed()
@@ -156,7 +155,6 @@ async function app() {
 						})
 					})
 				})
-				*/
 			}
 		})
 	})
